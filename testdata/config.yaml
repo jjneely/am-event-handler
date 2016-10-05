@@ -1,0 +1,4 @@
+handlers:
+  test: "/bin/true {{.Labels.alertname}}"
+  restartprometheus: "remctl {{ index .Argv 0 }} prom-restart"
+  touch: "/bin/bash -c \"echo {{ index .Argv 0 }} > testdata/unittest\""
