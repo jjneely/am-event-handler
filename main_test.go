@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -24,6 +25,7 @@ func init() {
 
 	// load test configuration into global config variable
 	debug = true
+	timeout = time.Second * 15
 	config, err = loadConfiguration("./testdata/config.yaml")
 	if err != nil {
 		panic("Could not load test configuration: " + err.Error())
@@ -109,5 +111,44 @@ func TestExecution(t *testing.T) {
 		t.Errorf("testdata/unittest should exist after event handled, but does not")
 	} else if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode.")
+	}
+
+	// Holodeck safeties are off
+	debug = false
+
+	url := fmt.Sprintf("http://%s/", bind)
+	buf := make([]byte, 4096)
+	testcase := new(bytes.Buffer)
+
+	json, err := os.Open("testdata/test6")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = io.Copy(testcase, json)
+	json.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.Post(url, "application/foobar", testcase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := resp.Body.Read(buf)
+	resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Errorf("Bad Status from test: %d  Body: %s", resp.StatusCode,
+			string(buf[:n]))
+	}
+
+	t.Logf("Response body: %s", string(buf[:n]))
+	if !strings.Contains(string(buf[:n]), "timed out") {
+		t.Errorf("Timeout test did not return a timeout error")
 	}
 }

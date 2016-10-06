@@ -26,6 +26,10 @@ var (
 	// debug dictates if we log additional debugging data
 	debug bool
 
+	// timeout is the time we wait for each command run to complete before
+	// canceling it.
+	timeout time.Duration
+
 	// config is a pointer to the global configuration object
 	config *Configuration
 )
@@ -108,24 +112,43 @@ func formatHandler(handler []string, command string, a Alert) (string, []string,
 }
 
 func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
+	done := make(chan error, 1)
+	var err error
 	if debug {
 		log.Printf("DEBUG: Not executing command \"%s\" with args \"%#v\"", exe, args)
 		return nil, nil
 	}
 
-	cmd := exec.Command(exe, args...)
 	out := new(bytes.Buffer)
+	cmd := exec.Command(exe, args...)
 	cmd.Stderr = out
 	cmd.Stdout = out
-
 	start := time.Now().Unix()
-	err := cmd.Run()
+	if err = cmd.Start(); err != nil {
+		log.Printf("Error starting command execution: %s", err.Error())
+		return nil, err
+	}
+
+	// This must be a channel to work with select() to implement a timeout
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case err = <-done:
+	case <-time.After(timeout):
+		_ = cmd.Process.Kill() // Ignore error here
+		err = fmt.Errorf("Command execution timed out and was killed.")
+		log.Printf("Command execution timed out and was killed")
+		out = nil
+	}
+
 	end := time.Now().Unix()
 	if err != nil {
 		log.Printf("Command \"%s\" Args \"%#v\" failed in %d seconds: %s",
 			exe, args, end-start, err.Error())
 		log.Printf("Error: %s", err)
-		if out.Len() > 0 {
+		if out != nil && out.Len() > 0 {
 			log.Printf("%s", out.String())
 		}
 	} else {
@@ -190,6 +213,7 @@ func handleEvent(e *AlertManagerEvent) error {
 			s := fmt.Sprintf("Error running command \"%s\" with args %#v: %s\n",
 				script, args, err.Error())
 			retText.WriteString(s)
+			errors++
 		}
 		if output != nil && output.Len() > 0 {
 			retText.WriteString("Command Output:\n")
@@ -281,6 +305,8 @@ func main() {
 		"Configuration file..")
 	flag.BoolVar(&debug, "debug", false, "Activate debug mode.")
 	flag.BoolVar(&debug, "d", false, "Activate debug mode.")
+	flag.DurationVar(&timeout, "timeout", time.Second*30, "Command/Handler timeout.")
+	flag.DurationVar(&timeout, "t", time.Second*30, "Command/Handler timeout.")
 
 	flag.Parse()
 	config, err = loadConfiguration(configFile)
