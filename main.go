@@ -107,13 +107,13 @@ func formatHandler(handler []string, command string, a Alert) (string, []string,
 	return fields[0], fields[1:], nil
 }
 
-func executeHandler(h string, args []string) {
+func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
 	if debug {
-		log.Printf("DEBUG: Not executing handler \"%s\" with args \"%s\"", h, args)
-		return
+		log.Printf("DEBUG: Not executing command \"%s\" with args \"%#v\"", exe, args)
+		return nil, nil
 	}
 
-	cmd := exec.Command(h, args...)
+	cmd := exec.Command(exe, args...)
 	out := new(bytes.Buffer)
 	cmd.Stderr = out
 	cmd.Stdout = out
@@ -122,15 +122,18 @@ func executeHandler(h string, args []string) {
 	err := cmd.Run()
 	end := time.Now().Unix()
 	if err != nil {
-		log.Printf("Command \"%s\" Args \"%s\" failed in %d seconds: %s",
-			h, args, end-start, err.Error())
+		log.Printf("Command \"%s\" Args \"%#v\" failed in %d seconds: %s",
+			exe, args, end-start, err.Error())
+		log.Printf("Error: %s", err)
 		if out.Len() > 0 {
 			log.Printf("%s", out.String())
 		}
 	} else {
-		log.Printf("Command \"%s\" Args \"%s\" ran successfully in %d seconds",
-			h, args, end-start)
+		log.Printf("Command \"%s\" Args \"%#v\" ran successfully in %d seconds",
+			exe, args, end-start)
 	}
+
+	return out, err
 }
 
 func handleEvent(e *AlertManagerEvent) error {
@@ -181,10 +184,18 @@ func handleEvent(e *AlertManagerEvent) error {
 			continue
 		}
 
-		log.Printf("Executing script \"%s\" with args \"%s\" via handler \"%s\"",
-			script, args, handler)
-		// XXX: Should we wait for the command and return its output?
-		go executeHandler(script, args)
+		output, err := executeHandler(script, args)
+		if err != nil {
+			// we've already logged this error in execution
+			s := fmt.Sprintf("Error running command \"%s\" with args %#v: %s\n",
+				script, args, err.Error())
+			retText.WriteString(s)
+		}
+		if output != nil && output.Len() > 0 {
+			retText.WriteString("Command Output:\n")
+			retText.Write(output.Bytes())
+			retText.WriteString("\nEnd Command Output\n")
+		}
 	}
 
 	if errors > 0 {
@@ -240,7 +251,7 @@ func amWebHook(writer http.ResponseWriter, r *http.Request) {
 
 	err = handleEvent(event)
 	if err != nil {
-		http.Error(w, "Error executing event: "+err.Error(),
+		http.Error(w, "Error(s) executing event(s):\n"+err.Error(),
 			http.StatusBadRequest)
 	}
 }

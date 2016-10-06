@@ -70,3 +70,44 @@ func TestREST(t *testing.T) {
 		}
 	}
 }
+
+func TestExecution(t *testing.T) {
+	// Holodeck safeties are off
+	debug = false
+
+	url := fmt.Sprintf("http://%s/", bind)
+	buf := make([]byte, 4096)
+	testcase := new(bytes.Buffer)
+
+	// Remove our test marker, ignoring errors
+	_ = os.Remove("testdata/unittest")
+
+	json, err := os.Open("testdata/test5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = io.Copy(testcase, json)
+	json.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.Post(url, "application/foobar", testcase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := resp.Body.Read(buf)
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Errorf("Bad Status from test: %d  Body: %s", resp.StatusCode,
+			string(buf[:n]))
+	}
+
+	// Does our test file exist?
+	_, err = os.Stat("testdata/unittest")
+	if os.IsNotExist(err) {
+		t.Errorf("testdata/unittest should exist after event handled, but does not")
+	} else if err != nil {
+		t.Fatal(err)
+	}
+}
