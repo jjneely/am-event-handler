@@ -26,7 +26,7 @@ func init() {
 	// load test configuration into global config variable
 	debug = true
 	timeout = time.Second * 15
-	config, err = loadConfiguration("./testdata/config.yaml")
+	config, err = loadConfiguration("testdata/config.yaml")
 	if err != nil {
 		panic("Could not load test configuration: " + err.Error())
 	}

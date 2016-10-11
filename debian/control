@@ -1,0 +1,14 @@
+Source: am-event-handler
+Section: main
+Priority: optional
+Maintainer: Jack Neely <jjneely@42lines.net>
+Build-Depends: debhelper (>=9), golang, dh-golang
+Standards-Version: 3.9.6
+Homepage: https://github.com/jjneely/am-event-handler
+
+Package: am-event-handler
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Alertmanager event handler
+ An event handler that can run arbitrary commands from Prometheus alerts
+ routed through Alertmanager.

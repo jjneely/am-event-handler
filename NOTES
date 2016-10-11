@@ -2,15 +2,14 @@ Design Notes:
 
 * Receive POST from AM
 * Security concerns?  Run on localhost?
-* Run a script selected by presence of tags
-    * Load config file that maps annotation names => "script <arg> {{$annotation}}"
+* Run a script selected by presence of handler annotation
+    * Load config file that maps names => "script <arg> {{.Argv}}"
+
+Caveats:
 * AM's route/receiver should not resend alerts otherwise handler is triggered
-* AM should only route alerts to the event handler when severity="event"
-
-Config File:
-
-    remctl: "/usr/path/remctl {{$remctl}}"
-    foo: "/path/to/foo <arg> {{$foo}} {{$summary}}"
+  repeatedly
+* AM should only route alerts to the event handler when severity="event" or
+  a similar label
 
 To Do:
 
@@ -57,5 +56,3 @@ Example POST Body:
   "groupKey":15759275461218033480
 }
 "
-2016/08/24 20:21:52 [::1]:35164 - "POST / HTTP/1.1" 200
-

@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+# See debhelper(7) (uncomment to enable)
+# output every command that modifies files on the build system.
+#export DH_VERBOSE = 1
+
+export DH_GOPKG := github.com/jjneely/am-event-handler
+
+BUILDDIR := $(shell perl -w -MDebian::Debhelper::Buildsystem::golang -e \
+	        'print Debian::Debhelper::Buildsystem::golang->new()->get_builddir()')
+
+%:
+	dh $@ --buildsystem=golang --with=golang
+
+override_dh_auto_install:
+	dh_auto_install
+	# we don't want the golang source (yet?)
+	rm -fr debian/$(DEBPKGNAME)/usr/share/gocode
+
+override_dh_auto_configure:
+	dh_auto_configure -O--buildsystem=golang
+	# Copy test fixtures.
+	cp -av testdata/ $(BUILDDIR)/src/$(DH_GOPKG)/testdata/
