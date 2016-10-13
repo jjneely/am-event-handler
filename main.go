@@ -41,6 +41,7 @@ type Alert struct {
 	Labels       map[string]string
 	Annotations  map[string]string
 	StartsAt     string
+	EndsAt       string
 	GeneratorURL string
 
 	// Not in JSON, explicitly so we can expose handler arguments to the
@@ -59,8 +60,21 @@ type AlertManagerEvent struct {
 	Alerts      []Alert
 }
 
+// Configuration is the Golang type that represents the YAML structure of
+// the configuration file.
 type Configuration struct {
-	Handlers map[string]string
+	// Handlers is a hash of handler name to the definition of what will
+	// be executed.
+	Handlers map[string]struct {
+
+		// Command is the go template string of the command to execute
+		Command string
+
+		// Status is the status of the alert, either "firing" or "resolved",
+		// that will trigger the handler execution.  A "*" character selects
+		// any alert status.
+		Status string
+	}
 }
 
 func loadConfiguration(file string) (*Configuration, error) {
@@ -160,11 +174,6 @@ func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
 }
 
 func handleEvent(e *AlertManagerEvent) error {
-	if e.Status != "firing" {
-		log.Printf("Ignoring %d non-firing alerts", len(e.Alerts))
-		return nil
-	}
-
 	errors := 0
 	retText := new(bytes.Buffer)
 	for _, alert := range e.Alerts {
@@ -191,7 +200,16 @@ func handleEvent(e *AlertManagerEvent) error {
 			errors++
 			continue
 		}
-		script, args, err := formatHandler(handler, command, alert)
+		if command.Status == "" {
+			// Set default value for non-specified status
+			command.Status = "firing"
+		}
+		if command.Status != "*" && command.Status != alert.Status {
+			log.Printf("Ignoring alert.  Status (%s) which does not match filter (%s)",
+				alert.Status, command.Status)
+			continue
+		}
+		script, args, err := formatHandler(handler, command.Command, alert)
 		if err != nil {
 			msg := fmt.Sprintf("Could not parse handler arguments: %s", err.Error())
 			log.Printf("%s", msg)

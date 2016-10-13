@@ -1,5 +1,11 @@
 handlers:
-  test: "/bin/true {{.Labels.alertname}}"
-  restartprometheus: "remctl {{ index .Argv 0 }} prom-restart"
-  touch: "/bin/bash -c \"echo {{ index .Argv 0 }} > testdata/unittest\""
-  sleep: "/bin/sleep 60"
+  test:
+    command: "/bin/true {{.Labels.alertname}}"
+    status: "firing"
+  restartprometheus:
+    command: "remctl {{ index .Argv 0 }} prom-restart"
+    status: "*"
+  touch:
+    command: "/bin/bash -c \"echo {{ index .Argv 0 }} > testdata/unittest\""
+  sleep:
+    command: "/bin/sleep 60"
