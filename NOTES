@@ -13,8 +13,9 @@ Caveats:
 
 To Do:
 
-* config flag for status, and severity
 * Make raw json available to command
+* default handler for any alert without a handler or unfound handler
+* Trigger handler on all alerts
 
 Example POST Body:
 
