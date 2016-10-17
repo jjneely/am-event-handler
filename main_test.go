@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -73,31 +74,36 @@ func TestREST(t *testing.T) {
 	}
 }
 
-func TestExecution(t *testing.T) {
-	// Holodeck safeties are off
-	debug = false
-
+func postHelper(filename string) (*http.Response, error) {
 	url := fmt.Sprintf("http://%s/", bind)
-	buf := make([]byte, 4096)
 	testcase := new(bytes.Buffer)
 
-	// Remove our test marker, ignoring errors
-	_ = os.Remove("testdata/unittest")
-
-	json, err := os.Open("testdata/test5")
+	json, err := os.Open(filename)
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 	_, err = io.Copy(testcase, json)
 	json.Close()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 
-	resp, err := http.Post(url, "application/foobar", testcase)
+	return http.Post(url, "application/foobar", testcase)
+}
+
+func TestExecution(t *testing.T) {
+	// Holodeck safeties are off
+	debug = false
+
+	// Remove our test marker, ignoring errors
+	_ = os.Remove("testdata/unittest")
+
+	resp, err := postHelper("testdata/test5")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	buf := make([]byte, 4096)
 	n, err := resp.Body.Read(buf)
 	resp.Body.Close()
 	if resp.StatusCode != 200 {
@@ -122,24 +128,11 @@ func TestTimeout(t *testing.T) {
 	// Holodeck safeties are off
 	debug = false
 
-	url := fmt.Sprintf("http://%s/", bind)
+	resp, err := postHelper("testdata/test6")
+	if err != nil {
+		t.Fatal(err)
+	}
 	buf := make([]byte, 4096)
-	testcase := new(bytes.Buffer)
-
-	json, err := os.Open("testdata/test6")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = io.Copy(testcase, json)
-	json.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resp, err := http.Post(url, "application/foobar", testcase)
-	if err != nil {
-		t.Fatal(err)
-	}
 	n, err := resp.Body.Read(buf)
 	resp.Body.Close()
 	if resp.StatusCode != 400 {
@@ -151,4 +144,30 @@ func TestTimeout(t *testing.T) {
 	if !strings.Contains(string(buf[:n]), "timed out") {
 		t.Errorf("Timeout test did not return a timeout error")
 	}
+}
+
+func TestJson(t *testing.T) {
+	// Holodeck safeties are off
+	debug = false
+
+	resp, err := postHelper("testdata/test7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 4096)
+	n, err := resp.Body.Read(buf)
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Errorf("Bad Status from test: %d  Body: %s", resp.StatusCode,
+			string(buf[:n]))
+	}
+
+	t.Logf("Response body: %s", string(buf[:n]))
+	alert := new(Alert)
+	err = json.Unmarshal(buf[:n], alert)
+	if err != nil {
+		t.Fatalf("JSON unmarshalling failed")
+	}
+
+	// XXX: Does alert match what we expect?
 }

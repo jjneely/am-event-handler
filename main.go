@@ -44,9 +44,13 @@ type Alert struct {
 	EndsAt       string
 	GeneratorURL string
 
-	// Not in JSON, explicitly so we can expose handler arguments to the
-	// template.
+	// Argv is not in the alert JSON and is available so the handler arguments
+	// can be exposed to the template.
 	Argv []string `json:"-"`
+
+	// Json is not from the alert JSON but holds a JSON formatted string
+	// of this alert.  It is not the same JSON as originally passed in.
+	Json string `json:"-"`
 }
 
 // AlertManagerEvent represents the JSON struct that is POST'd to a web_hook
@@ -178,6 +182,16 @@ func handleEvent(e *AlertManagerEvent) error {
 	retText := new(bytes.Buffer)
 	for _, alert := range e.Alerts {
 		log.Printf("Processing Alert: %s", alert.Labels["alertname"])
+		buf, err := json.Marshal(alert)
+		if err != nil {
+			msg := fmt.Sprintf("Error marshalling JSON: %s", err.Error())
+			log.Print(msg)
+			retText.WriteString(msg + "\n")
+			errors++
+			continue
+		} else {
+			alert.Json = string(buf)
+		}
 		if _, ok := alert.Annotations["handler"]; !ok {
 			// We didn't find the "handler" annotation
 			log.Printf("Alert does not have handler annotation")
