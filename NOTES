@@ -1,19 +1,14 @@
-Design Notes:
-
-* Receive POST from AM
-* Security concerns?  Run on localhost?
-* Run a script selected by presence of handler annotation
-    * Load config file that maps names => "script <arg> {{.Argv}}"
-
-Caveats:
-* AM's route/receiver should not resend alerts otherwise handler is triggered
-  repeatedly
-* AM should only route alerts to the event handler when severity="event" or
-  a similar label
+Notes:
+* Security concerns?  Run from localhost?
+* AM's route/receiver may resent alerts which will trigger successive
+  actions by this event handler.
+* AM should filter alerts sent to this receiver by severity="event" or some
+  such label.
+* All alerts can be routed here (use continue: true in the route) to enable
+  alert logging or similar functionality.
 
 To Do:
 
-* Make raw json available to command
 * default handler for any alert without a handler or unfound handler
 * Trigger handler on all alerts
 

@@ -182,6 +182,8 @@ func handleEvent(e *AlertManagerEvent) (*bytes.Buffer, error) {
 	retText := new(bytes.Buffer)
 	for _, alert := range e.Alerts {
 		log.Printf("Processing Alert: %s", alert.Labels["alertname"])
+		var handler []string
+
 		buf, err := json.Marshal(alert)
 		if err != nil {
 			msg := fmt.Sprintf("Error marshalling JSON: %s", err.Error())
@@ -189,62 +191,20 @@ func handleEvent(e *AlertManagerEvent) (*bytes.Buffer, error) {
 			retText.WriteString(msg + "\n")
 			errors++
 			continue
-		} else {
-			alert.Json = string(buf)
 		}
+		alert.Json = string(buf)
 		if _, ok := alert.Annotations["handler"]; !ok {
 			// We didn't find the "handler" annotation
-			log.Printf("Alert does not have handler annotation")
-			retText.WriteString("Alert does not have handler annotation.\n")
-			errors++
-			continue
-		}
-		handler := strings.Fields(alert.Annotations["handler"])
-		if len(handler) == 0 {
-			log.Printf("Empty handler annotation found in alert")
-			retText.WriteString("Empty handler annotation found in alert.\n")
-			errors++
-			continue
-		}
-		command, ok := config.Handlers[handler[0]]
-		if !ok {
-			log.Printf("Error: Handler %s not found", handler[0])
-			retText.WriteString(fmt.Sprintf("Error: Handler %s not found.\n",
-				handler[0]))
-			errors++
-			continue
-		}
-		if command.Status == "" {
-			// Set default value for non-specified status
-			command.Status = "firing"
-		}
-		if command.Status != "*" && command.Status != alert.Status {
-			log.Printf("Ignoring alert.  Status (%s) which does not match filter (%s)",
-				alert.Status, command.Status)
-			continue
-		}
-		script, args, err := formatHandler(handler, command.Command, alert)
-		if err != nil {
-			msg := fmt.Sprintf("Could not parse handler arguments: %s", err.Error())
-			log.Printf("%s", msg)
-			retText.WriteString(msg + ".\n")
-			errors++
-			continue
-		}
-		if script == "" {
-			// Sanity
-			log.Printf("Script is empty, not running")
-			retText.WriteString("Script is empty, not running.\n")
-			errors++
-			continue
+			log.Printf("Alert does not have handler annotation trying default")
+			handler = []string{"default"}
+		} else {
+			handler = strings.Fields(alert.Annotations["handler"])
 		}
 
-		output, err := executeHandler(script, args)
+		output, err := parseHandler(handler, alert)
 		if err != nil {
-			// we've already logged this error in execution
-			s := fmt.Sprintf("Error running command \"%s\" with args %#v: %s\n",
-				script, args, err.Error())
-			retText.WriteString(s)
+			log.Printf(err.Error())
+			retText.WriteString(err.Error() + "\n")
 			errors++
 		}
 		if output != nil && output.Len() > 0 {
@@ -257,6 +217,35 @@ func handleEvent(e *AlertManagerEvent) (*bytes.Buffer, error) {
 	}
 
 	return retText, nil
+}
+
+func parseHandler(handler []string, alert Alert) (*bytes.Buffer, error) {
+	if len(handler) == 0 {
+		return nil, fmt.Errorf("Empty handler annotation found in alert.")
+	}
+	command, ok := config.Handlers[handler[0]]
+	if !ok {
+		return nil, fmt.Errorf("Error: Handler %s not found", handler[0])
+	}
+	if command.Status == "" {
+		// Set default value for non-specified status
+		command.Status = "firing"
+	}
+	if command.Status != "*" && command.Status != alert.Status {
+		log.Printf("Ignoring alert.  Status (%s) which does not match filter (%s)",
+			alert.Status, command.Status)
+		return nil, nil
+	}
+	script, args, err := formatHandler(handler, command.Command, alert)
+	if err != nil {
+		return nil, fmt.Errorf("Could not parse handler arguments: %s", err.Error())
+	}
+	if script == "" {
+		// Sanity
+		return nil, fmt.Errorf("Script is empty, not running.")
+	}
+
+	return executeHandler(script, args)
 }
 
 func unmarshalBody(encoded []byte) (*AlertManagerEvent, error) {
@@ -307,6 +296,7 @@ func amWebHook(writer http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Error(s) executing event(s):\n"+err.Error(),
 			http.StatusBadRequest)
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	if output.Len() > 0 {
