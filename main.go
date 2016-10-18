@@ -177,7 +177,7 @@ func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
 	return out, err
 }
 
-func handleEvent(e *AlertManagerEvent) error {
+func handleEvent(e *AlertManagerEvent) (*bytes.Buffer, error) {
 	errors := 0
 	retText := new(bytes.Buffer)
 	for _, alert := range e.Alerts {
@@ -248,17 +248,15 @@ func handleEvent(e *AlertManagerEvent) error {
 			errors++
 		}
 		if output != nil && output.Len() > 0 {
-			retText.WriteString("Command Output:\n")
 			retText.Write(output.Bytes())
-			retText.WriteString("\nEnd Command Output\n")
 		}
 	}
 
 	if errors > 0 {
-		return fmt.Errorf("%s", retText.String())
+		return retText, fmt.Errorf("Error(s) executing event(s)")
 	}
 
-	return nil
+	return retText, nil
 }
 
 func unmarshalBody(encoded []byte) (*AlertManagerEvent, error) {
@@ -305,10 +303,14 @@ func amWebHook(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = handleEvent(event)
+	output, err := handleEvent(event)
 	if err != nil {
 		http.Error(w, "Error(s) executing event(s):\n"+err.Error(),
 			http.StatusBadRequest)
+	}
+	w.WriteHeader(http.StatusOK)
+	if output.Len() > 0 {
+		w.Write(output.Bytes())
 	}
 }
 

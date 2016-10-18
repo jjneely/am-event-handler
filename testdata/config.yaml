@@ -10,5 +10,5 @@ handlers:
   sleep:
     command: "/bin/sleep 60"
   echo:
-    command: "/bin/echo {{ .Json }}"
+    command: "/bin/echo '{{ .Json }}'"
     status: "*"

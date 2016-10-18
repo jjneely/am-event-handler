@@ -52,6 +52,34 @@ following is an example configuration:
 
 Note that the supplied arguments are stored in the `Argv` slice of strings.
 
+Templating
+----------
+
+In the configuration file the command to be executed can be templated as
+in the example above.  In addition to Go's built in [text template][1]
+functionality the following are made available.
+
+*Variables*
+
+* `.Status`: `string` The status of the alert.  This should be either "firing"
+  or "resolved".
+* `.Labels`: `map[string]string`  A map of the labels applied to this alert.
+* `.Annotations`: `map[string]string`  A map of the annotations applied to
+  this alert.
+* `.StartsAt`: `string` The RFC 3339 date the alert began as from the
+  Alertmanager.
+* `.EndsAt`: `string` The RFC 3339 date the alert ended as from the
+  Alertmanager.  May be "0001-01-01T00:00:00Z" when the alert is in progress.
+* `.GeneratorURL`: `string` The URL to the originating Prometheus server and
+  graph.
+* `.Argv`: `[]string` A slice of strings holding the arguments present in
+  the `handler` annotation.  The handler annotation is whitespace delimited
+  and this slice begins at the first argument and does not include the name
+  of the specified handler.
+* `.Json`: `string` A JSON representation of this alert.  This is a filtered
+  representation of the alert and not the complete JSON as provided by the
+  Alertmanager.
+
 Contributing
 ------------
 
@@ -61,3 +89,5 @@ Authors and Copyright
 ---------------------
 
 Copyright 2015 42 Lines, Inc.  Original author: Jack Neely <jjneely@42lines.net>
+
+[1]: https://golang.org/pkg/text/template/
