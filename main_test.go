@@ -13,9 +13,9 @@ import (
 )
 
 var testdata = map[string]int{
-	"testdata/test1": 400, // No handler in annotation
-	"testdata/test2": 400, // No handler in annotation
-	"testdata/test3": 200, // Command not found on system
+	"testdata/test1": 200, // No handler in annotation
+	"testdata/test2": 200, // No handler in annotation
+	"testdata/test3": 200, // Command not found on system (debug mode)
 	"testdata/test4": 200, // Runs command on local system with templating
 }
 
@@ -26,6 +26,7 @@ func init() {
 
 	// load test configuration into global config variable
 	debug = true
+	verbose = true
 	timeout = time.Second * 15
 	config, err = loadConfiguration("testdata/config.yaml")
 	if err != nil {

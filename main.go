@@ -22,9 +22,17 @@ const (
 	JsonBody = 4096
 )
 
+// Errors
+const (
+	EMISSING = iota
+)
+
 var (
-	// debug dictates if we log additional debugging data
+	// debug can be set to true to disable running of external commands
 	debug bool
+
+	// verbose can be set to true to enable more verbose logging
+	verbose bool
 
 	// timeout is the time we wait for each command run to complete before
 	// canceling it.
@@ -81,6 +89,24 @@ type Configuration struct {
 	}
 }
 
+// Error handling
+type EventError struct {
+	code   int
+	object string
+}
+
+func (e EventError) Error() string {
+	switch e.code {
+	case EMISSING:
+		return fmt.Sprintf("Handler %s is not defined or missing from configration",
+			e.object)
+	}
+
+	return "Undefined event error"
+}
+
+// loadConfiguration reads YAML data from the specified file name and populates
+// a Configuration object.
 func loadConfiguration(file string) (*Configuration, error) {
 	fd, err := os.Open(file)
 	if err != nil {
@@ -103,6 +129,8 @@ func loadConfiguration(file string) (*Configuration, error) {
 	return cfg, err
 }
 
+// formatHandler is a helper function to handle rendering the handler string
+// templates.
 func formatHandler(handler []string, command string, a Alert) (string, []string, error) {
 	// We ignore handler[0] as its the handle looked up to find command
 	a.Argv = handler[1:]
@@ -129,6 +157,9 @@ func formatHandler(handler []string, command string, a Alert) (string, []string,
 	return fields[0], fields[1:], nil
 }
 
+// executeHandler executes a handler give an executable and a slice of
+// arguments.  STDOUT and STDERR are merged together and returnd in the
+// bytes.Buffer.
 func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
 	done := make(chan error, 1)
 	var err error
@@ -143,7 +174,6 @@ func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
 	cmd.Stdout = out
 	start := time.Now().Unix()
 	if err = cmd.Start(); err != nil {
-		log.Printf("Error starting command execution: %s", err.Error())
 		return nil, err
 	}
 
@@ -157,7 +187,6 @@ func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
 	case <-time.After(timeout):
 		_ = cmd.Process.Kill() // Ignore error here
 		err = fmt.Errorf("Command execution timed out and was killed.")
-		log.Printf("Command execution timed out and was killed")
 		out = nil
 	}
 
@@ -165,10 +194,6 @@ func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
 	if err != nil {
 		log.Printf("Command \"%s\" Args \"%#v\" failed in %d seconds: %s",
 			exe, args, end-start, err.Error())
-		log.Printf("Error: %s", err)
-		if out != nil && out.Len() > 0 {
-			log.Printf("%s", out.String())
-		}
 	} else {
 		log.Printf("Command \"%s\" Args \"%#v\" ran successfully in %d seconds",
 			exe, args, end-start)
@@ -177,6 +202,7 @@ func executeHandler(exe string, args []string) (*bytes.Buffer, error) {
 	return out, err
 }
 
+// handleEvent does the initial work to handle events from the HTTP body.
 func handleEvent(e *AlertManagerEvent) (*bytes.Buffer, error) {
 	errors := 0
 	retText := new(bytes.Buffer)
@@ -195,20 +221,33 @@ func handleEvent(e *AlertManagerEvent) (*bytes.Buffer, error) {
 		alert.Json = string(buf)
 		if _, ok := alert.Annotations["handler"]; !ok {
 			// We didn't find the "handler" annotation
-			log.Printf("Alert does not have handler annotation trying default")
+			log.Printf("%s does not have handler annotation trying default",
+				alert.Labels["alertname"])
 			handler = []string{"default"}
 		} else {
 			handler = strings.Fields(alert.Annotations["handler"])
 		}
 
-		output, err := parseHandler(handler, alert)
-		if err != nil {
-			log.Printf(err.Error())
-			retText.WriteString(err.Error() + "\n")
-			errors++
-		}
-		if output != nil && output.Len() > 0 {
-			retText.Write(output.Bytes())
+		// Run our handler or the default if no handler is present.  Following
+		// that run the "all" handler if present.
+		for _, h := range [][]string{handler, []string{"all"}} {
+			output, err := parseHandler(h, alert)
+			if err != nil {
+				if e, ok := err.(EventError); ok && e.code == EMISSING {
+					if h[0] == "default" || h[0] == "all" {
+						// Ignore missing handler errors for our special handlers
+						// This means that a missing handler annotation is not
+						// considered an error.
+						continue
+					}
+				}
+				log.Printf(err.Error())
+				retText.WriteString(err.Error() + "\n")
+				errors++
+			}
+			if output != nil && output.Len() > 0 {
+				retText.Write(output.Bytes())
+			}
 		}
 	}
 
@@ -219,13 +258,14 @@ func handleEvent(e *AlertManagerEvent) (*bytes.Buffer, error) {
 	return retText, nil
 }
 
+// parseHandler parses and error checks the handler string before execution.
 func parseHandler(handler []string, alert Alert) (*bytes.Buffer, error) {
 	if len(handler) == 0 {
 		return nil, fmt.Errorf("Empty handler annotation found in alert.")
 	}
 	command, ok := config.Handlers[handler[0]]
 	if !ok {
-		return nil, fmt.Errorf("Error: Handler %s not found", handler[0])
+		return nil, EventError{EMISSING, handler[0]}
 	}
 	if command.Status == "" {
 		// Set default value for non-specified status
@@ -248,6 +288,8 @@ func parseHandler(handler []string, alert Alert) (*bytes.Buffer, error) {
 	return executeHandler(script, args)
 }
 
+// unmarshalBody is a helper function to load JSON from an HTTP body into
+// an AlertManagerEvent structure.
 func unmarshalBody(encoded []byte) (*AlertManagerEvent, error) {
 	data := new(AlertManagerEvent)
 	err := json.Unmarshal(encoded, &data)
@@ -258,6 +300,8 @@ func unmarshalBody(encoded []byte) (*AlertManagerEvent, error) {
 	return data, nil
 }
 
+// amWebHook decodes the HTTP request, finds Alertmanager JSON structure
+// and dispatches the alerts.
 func amWebHook(writer http.ResponseWriter, r *http.Request) {
 	// Log the request
 	w := NewStatusResponseWriter(writer)
@@ -282,7 +326,7 @@ func amWebHook(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if debug {
+	if verbose {
 		log.Printf("Request Body: \"%s\"", string(body))
 	}
 
@@ -294,16 +338,20 @@ func amWebHook(writer http.ResponseWriter, r *http.Request) {
 
 	output, err := handleEvent(event)
 	if err != nil {
-		http.Error(w, "Error(s) executing event(s):\n"+err.Error(),
-			http.StatusBadRequest)
-		return
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
-	w.WriteHeader(http.StatusOK)
 	if output.Len() > 0 {
-		w.Write(output.Bytes())
+		blob := output.Bytes()
+		w.Write(blob)
+		if verbose {
+			log.Printf("Response body: %s", string(blob))
+		}
 	}
 }
 
+// run starts the HTTP server
 func run(bindAddress string) {
 	http.HandleFunc("/", amWebHook)
 
@@ -329,6 +377,8 @@ func main() {
 		"Configuration file..")
 	flag.BoolVar(&debug, "debug", false, "Activate debug mode.")
 	flag.BoolVar(&debug, "d", false, "Activate debug mode.")
+	flag.BoolVar(&verbose, "verbose", false, "Verbose logging.")
+	flag.BoolVar(&verbose, "v", false, "Verbose logging.")
 	flag.DurationVar(&timeout, "timeout", time.Second*30, "Command/Handler timeout.")
 	flag.DurationVar(&timeout, "t", time.Second*30, "Command/Handler timeout.")
 
