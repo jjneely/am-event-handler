@@ -92,14 +92,14 @@ func postHelper(filename string) (*http.Response, error) {
 	return http.Post(url, "application/foobar", testcase)
 }
 
-func TestExecution(t *testing.T) {
+func executeTest(t *testing.T, testcase, flagFile string) {
 	// Holodeck safeties are off
 	debug = false
 
 	// Remove our test marker, ignoring errors
-	_ = os.Remove("testdata/unittest")
+	_ = os.Remove(flagFile)
 
-	resp, err := postHelper("testdata/test5")
+	resp, err := postHelper(testcase)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,12 +113,42 @@ func TestExecution(t *testing.T) {
 	}
 
 	// Does our test file exist?
-	_, err = os.Stat("testdata/unittest")
+	_, err = os.Stat(flagFile)
 	if os.IsNotExist(err) {
-		t.Errorf("testdata/unittest should exist after event handled, but does not")
+		t.Errorf("%s should exist after event handled, but does not", flagFile)
 	} else if err != nil {
 		t.Fatal(err)
 	}
+
+	_ = os.Remove(flagFile)
+}
+
+func TestExecution(t *testing.T) {
+	executeTest(t, "testdata/test5", "testdata/unittest")
+}
+
+func TestDefaultHandler(t *testing.T) {
+	config.Handlers["default"] = struct {
+		Command string
+		Status  string
+	}{
+		Command: "/bin/bash -c \"touch testdata/testDefault\"",
+		Status:  "*",
+	}
+	executeTest(t, "testdata/test1", "testdata/testDefault")
+	delete(config.Handlers, "default")
+}
+
+func TestAllHandler(t *testing.T) {
+	config.Handlers["all"] = struct {
+		Command string
+		Status  string
+	}{
+		Command: "/bin/bash -c \"touch testdata/testAll\"",
+		Status:  "*",
+	}
+	executeTest(t, "testdata/test1", "testdata/testAll")
+	delete(config.Handlers, "all")
 }
 
 func TestTimeout(t *testing.T) {
