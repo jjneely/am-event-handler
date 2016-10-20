@@ -1,3 +1,9 @@
+am-event-handler (0.0.2) unstable; urgency=medium
+
+  * Adding support for "default" and "all" special handlers
+
+ -- Jack Neely <jjneely@42lines.net>  Thu, 20 Oct 2016 14:16:20 -0400
+
 am-event-handler (0.0.1) unstable; urgency=medium
 
   * Initial Release.
