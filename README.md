@@ -95,6 +95,8 @@ Variables:
 * `.Json`: `string` A JSON representation of this alert.  This is a filtered
   representation of the alert and not the complete JSON as provided by the
   Alertmanager.
+* `.Timestamp`: `string` A UTC timestamp in RFC 3339 format of when Alertmanager
+  hit the am-event-handler with this alert.
 
 Contributing
 ------------

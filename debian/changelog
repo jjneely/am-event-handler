@@ -1,3 +1,9 @@
+am-event-handler (0.0.3) unstable; urgency=medium
+
+  * Add a timestamp to the alert metadata
+
+ -- Jack Neely <jjneely@42lines.net>  Fri, 21 Oct 2016 15:25:59 -0400
+
 am-event-handler (0.0.2) unstable; urgency=medium
 
   * Adding support for "default" and "all" special handlers

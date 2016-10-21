@@ -52,6 +52,10 @@ type Alert struct {
 	EndsAt       string
 	GeneratorURL string
 
+	// Timestamp is a string representing the time Alertmanager hit this
+	// API.  Useful for logging.
+	Timestamp string `json:"timestamp"`
+
 	// Argv is not in the alert JSON and is available so the handler arguments
 	// can be exposed to the template.
 	Argv []string `json:"-"`
@@ -209,6 +213,7 @@ func handleEvent(e *AlertManagerEvent) (*bytes.Buffer, error) {
 	for _, alert := range e.Alerts {
 		log.Printf("Processing Alert: %s", alert.Labels["alertname"])
 		var handler []string
+		alert.Timestamp = time.Now().UTC().Format(time.RFC3339)
 
 		buf, err := json.Marshal(alert)
 		if err != nil {
