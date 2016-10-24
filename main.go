@@ -45,12 +45,12 @@ var (
 // Alert represents an individual alert from Prometheus and included in the
 // JSON blob POST'd via the Alertmanager.
 type Alert struct {
-	Status       string
-	Labels       map[string]string
-	Annotations  map[string]string
-	StartsAt     string
-	EndsAt       string
-	GeneratorURL string
+	Status       string            `json:"status"`
+	Labels       map[string]string `json:"labels"`
+	Annotations  map[string]string `json:"annotations"`
+	StartsAt     string            `json:"startsAt"`
+	EndsAt       string            `json:"endsAt"`
+	GeneratorURL string            `json:"generatorURL"`
 
 	// Timestamp is a string representing the time Alertmanager hit this
 	// API.  Useful for logging.
