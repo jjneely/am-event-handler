@@ -106,6 +106,6 @@ Clone this repository and create a GitHub PR.
 Authors and Copyright
 ---------------------
 
-Copyright 2015 42 Lines, Inc.  Original author: Jack Neely <jjneely@42lines.net>
+Copyright 2016 42 Lines, Inc.  Original author: Jack Neely <jjneely@42lines.net>
 
 [1]: https://golang.org/pkg/text/template/
