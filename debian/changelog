@@ -1,3 +1,9 @@
+am-event-handler (0.0.5) unstable; urgency=medium
+
+  * Log errors to the local log as well as report them to the remote client
+
+ -- Jack Neely <jjneely@42lines.net>  Tue, 08 Nov 2016 10:14:23 -0500
+
 am-event-handler (0.0.4) unstable; urgency=medium
 
   * Make the output JSON fields match the input fields

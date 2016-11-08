@@ -321,12 +321,14 @@ func amWebHook(writer http.ResponseWriter, r *http.Request) {
 	body := make([]byte, JsonBody)
 	n, err := r.Body.Read(body)
 	if err != nil && err != io.EOF {
+		log.Printf("Error reading from client: %s", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	body = body[:n]
 
 	if len(body) == JsonBody {
+		log.Printf("Message body too larger than 4KiB")
 		http.Error(w, "Message body larger than 4KiB.", http.StatusBadRequest)
 		return
 	}
@@ -337,6 +339,7 @@ func amWebHook(writer http.ResponseWriter, r *http.Request) {
 
 	event, err := unmarshalBody(body)
 	if err != nil {
+		log.Printf("Error parsing request JSON: %s", err.Error())
 		http.Error(w, "Error parsing JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
