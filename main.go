@@ -308,6 +308,10 @@ func unmarshalBody(encoded []byte) (*AlertManagerEvent, error) {
 // amWebHook decodes the HTTP request, finds Alertmanager JSON structure
 // and dispatches the alerts.
 func amWebHook(writer http.ResponseWriter, r *http.Request) {
+	var body []byte
+	var err error
+	var n int
+
 	// Log the request
 	w := NewStatusResponseWriter(writer)
 	defer logRequest(w, r)
@@ -318,19 +322,17 @@ func amWebHook(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := make([]byte, JsonBody)
-	n, err := r.Body.Read(body)
-	if err != nil && err != io.EOF {
-		log.Printf("Error reading from client: %s", err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	body = body[:n]
-
-	if len(body) == JsonBody {
-		log.Printf("Message body too larger than 4KiB")
-		http.Error(w, "Message body larger than 4KiB.", http.StatusBadRequest)
-		return
+	buf := make([]byte, JsonBody)
+	for err == nil {
+		n, err = r.Body.Read(buf)
+		if err != nil && err != io.EOF {
+			log.Printf("Error reading from client: %s", err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if n > 0 {
+			body = append(body, buf[:n]...)
+		}
 	}
 
 	if verbose {

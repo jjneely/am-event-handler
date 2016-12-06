@@ -202,3 +202,32 @@ func TestJson(t *testing.T) {
 
 	// XXX: Does alert match what we expect?
 }
+
+func TestLargeSize(t *testing.T) {
+	var body []byte
+
+	// Holodeck safeties are on
+	debug = true
+
+	resp, err := postHelper("testdata/test8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 4096)
+	n := 0
+	for err == nil {
+		n, err = resp.Body.Read(buf)
+		t.Logf("Read %d bytes.  IO error: %v", n, err)
+		if n > 0 {
+			body = append(body, buf[:n]...)
+		}
+	}
+	if err != nil && err != io.EOF {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Bad Status from test: %d", resp.StatusCode)
+	}
+}
