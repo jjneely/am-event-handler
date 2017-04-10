@@ -1,3 +1,9 @@
+am-event-handler (0.0.7) unstable; urgency=medium
+
+  * Add a 'replace' function to the templates
+
+ -- Jack Neely <jjneely@42lines.net>  Mon, 10 Apr 2017 12:15:38 -0400
+
 am-event-handler (0.0.6) unstable; urgency=medium
 
   * Handle arbitrarily sized alert payloads.
