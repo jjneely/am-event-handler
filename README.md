@@ -98,6 +98,13 @@ Variables:
 * `.Timestamp`: `string` A UTC timestamp in RFC 3339 format of when Alertmanager
   hit the am-event-handler with this alert.
 
+Functions:
+
+* `replace <string> <substring> <replacement>`:  This allows simple replacement
+  based substitution of strings.  Perhaps dealing with escaping some pesky
+  quotes.  As the templates are specified in YAML there is YAML escaping done
+  on top of the Go string escaping before the string is parsed as a template.
+
 Contributing
 ------------
 
@@ -106,6 +113,6 @@ Clone this repository and create a GitHub PR.
 Authors and Copyright
 ---------------------
 
-Copyright 2016 42 Lines, Inc.  Original author: Jack Neely <jjneely@42lines.net>
+Copyright 2016 - 2017 42 Lines, Inc.  Original author: Jack Neely <jjneely@42lines.net>
 
 [1]: https://golang.org/pkg/text/template/
