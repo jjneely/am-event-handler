@@ -109,6 +109,11 @@ func (e EventError) Error() string {
 	return "Undefined event error"
 }
 
+// replace is a helper function for templating to do simple substitution.
+func replace(a, b, c string) string {
+	return strings.Replace(a, b, c, -1)
+}
+
 // loadConfiguration reads YAML data from the specified file name and populates
 // a Configuration object.
 func loadConfiguration(file string) (*Configuration, error) {
@@ -136,10 +141,11 @@ func loadConfiguration(file string) (*Configuration, error) {
 // formatHandler is a helper function to handle rendering the handler string
 // templates.
 func formatHandler(handler []string, command string, a Alert) (string, []string, error) {
+	funcs := template.FuncMap{"replace": replace}
 	// We ignore handler[0] as its the handle looked up to find command
 	a.Argv = handler[1:]
 
-	tmpl, err := template.New("command").Parse(command)
+	tmpl, err := template.New("command").Funcs(funcs).Parse(command)
 	if err != nil {
 		log.Printf("Error: Template parsing failed for \"%s\" with error: %s",
 			command, err)

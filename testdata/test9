@@ -1,0 +1,49 @@
+{
+    "alerts": [
+        {
+            "annotations": {
+                "description": "We aren't processing enough sleep stage messages successfully. Currently processing 9.310921017250124 msgs/sec",
+                "runbook": "https://wiki.example.com/display/IPD/Sleep+Stages+Server+Playbook",
+                "summary": "Somnia Successful Sleep Stage Calculations Dropped",
+                "handler": "echo"
+            },
+            "endsAt": "0001-01-01T00:00:00Z",
+            "generatorURL": "http://prometheus.prod.sleep-wellness.dal09.aurora.example.com/graph?g0.expr=job%3Asomnia_completed_request%3Arate1m%7Benvironment%3D%22prod%22%7D+%3C+10&g0.tab=0",
+            "labels": {
+                "alertname": "successful_stages_drop",
+                "aurora_cluster": "dal09",
+                "aurora_job": "dal09/sleep-wellness/prod/somnia-consumer",
+                "environment": "prod",
+                "job": "somnia-consumer",
+                "monitor": "dal09/sleep-wellness/prod/prometheus",
+                "role": "sleep-wellness",
+                "severity": "page"
+            },
+            "startsAt": "2017-04-06T23:46:53.735Z",
+            "status": "firing"
+        }
+    ],
+    "commonAnnotations": {
+        "description": "We aren't processing enough sleep stage messages successfully. Currently processing 9.310921017250124 msgs/sec",
+        "runbook": "https://wiki.example.com/display/IPD/Sleep+Stages+Server+Playbook",
+        "summary": "Somnia Successful Sleep Stage Calculations Dropped"
+    },
+    "commonLabels": {
+        "alertname": "successful_stages_drop",
+        "aurora_cluster": "dal09",
+        "aurora_job": "dal09/sleep-wellness/prod/somnia-consumer",
+        "environment": "prod",
+        "job": "somnia-consumer",
+        "monitor": "dal09/sleep-wellness/prod/prometheus",
+        "role": "sleep-wellness",
+        "severity": "page"
+    },
+    "externalURL": "https://alertmanager.example.com",
+    "groupKey": 8542188786867882008,
+    "groupLabels": {
+        "alertname": "successful_stages_drop"
+    },
+    "receiver": "default-event-handler",
+    "status": "firing",
+    "version": "3"
+}

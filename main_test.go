@@ -17,6 +17,7 @@ var testdata = map[string]int{
 	"testdata/test2": 200, // No handler in annotation
 	"testdata/test3": 200, // Command not found on system (debug mode)
 	"testdata/test4": 200, // Runs command on local system with templating
+	"testdata/test9": 200, // Templating/quoting tests
 }
 
 var bind = "127.0.0.1:4242"
@@ -205,6 +206,10 @@ func TestJson(t *testing.T) {
 
 func TestLargeSize(t *testing.T) {
 	var body []byte
+
+	if testing.Short() {
+		t.Skip("Skipping test in short mode.")
+	}
 
 	// Holodeck safeties are on
 	debug = true

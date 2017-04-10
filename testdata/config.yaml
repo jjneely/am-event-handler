@@ -10,5 +10,6 @@ handlers:
   sleep:
     command: "/bin/sleep 60"
   echo:
-    command: "/bin/echo '{{ .Json }}'"
+    command: >
+        /bin/echo '{{ replace .Json "'" "\\'" }}'
     status: "*"
